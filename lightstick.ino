@@ -1,41 +1,85 @@
 #include <Adafruit_NeoPixel.h>
+#include <SPI.h>
+#include <SD.h>
+
 #ifdef __AVR__
   #include <avr/power.h>
 #endif
 
 // D6 == GPIO 12
-#define PIN 12
+// D2 == GPIO 4
+#define LIGHT_PIN 4
 
 // Number of NeoPixels
 #define LEDN 144
+#define CARD_PIN 15
 
-Adafruit_NeoPixel strip = Adafruit_NeoPixel(LEDN, PIN, NEO_GRB + NEO_KHZ800);
+int num_cols;
+int *colour;
+
+Adafruit_NeoPixel strip = Adafruit_NeoPixel(LEDN, LIGHT_PIN, NEO_GRB + NEO_KHZ800);
+File colourFile;
 
 void setup() {
-  // This is for Trinket 5V 16MHz, you can remove these three lines if you are not using a Trinket
-  #if defined (__AVR_ATtiny85__)
-    if (F_CPU == 16000000) clock_prescale_set(clock_div_1);
-  #endif
-  // End of trinket special code
-
+  Serial.begin(9600);
   strip.begin();
   strip.show();
+
+  Serial.print("Initializing SD card...");
+  if (!SD.begin(CARD_PIN)) {
+    Serial.println("initialization failed!");
+    return;
+  }
+  Serial.println("initialization done.");
+  colourFile = SD.open("col.txt");
+
+  char lines[1];
+  lines[0] = colourFile.read();
+  num_cols = atoi(lines);
+  Serial.println(num_cols);
+  colour = (int*) new int [num_cols*3];
+  colourFile.read();
+  colourFile.read();
+  
+  char buff[4];
+  for(int i=0; i < num_cols; i++){
+    for(int j=0; j < 3; j++){
+      for(int k=0; k < 3; k++){
+        buff[k] = colourFile.read();
+      }
+      colour[(i*3)+j] = atoi(buff);
+    }
+    colourFile.read();
+    colourFile.read();
+  }
+  for(int i=0; i < num_cols; i++){
+    Serial.print(colour[(i*3)]);
+        Serial.print(",");
+    Serial.print(colour[(i*3)+1]);
+        Serial.print(",");
+    Serial.print(colour[(i*3)+2]);
+    Serial.print("\n");
+  }
 }
 
 void loop() {
+  for(int i=0; i < num_cols; i++){
+    colorWipe(strip.Color(colour[(i*3)], colour[(i*3)+1], colour[(i*3)+2]), 50);
+  }
+
   // Some example procedures showing how to display to the pixels:
-  colorWipe(strip.Color(255, 0, 0), 50); // Red
-  colorWipe(strip.Color(0, 255, 0), 50); // Green
-  colorWipe(strip.Color(0, 0, 255), 50); // Blue
+  //colorWipe(strip.Color(255, 0, 0), 50); // Red
+  //colorWipe(strip.Color(0, 255, 0), 50); // Green
+  //colorWipe(strip.Color(0, 0, 255), 50); // Blue
 
   // Send a theater pixel chase in...
-  theaterChase(strip.Color(127, 127, 127), 50); // White
-  theaterChase(strip.Color(127, 0, 0), 50); // Red
-  theaterChase(strip.Color(0, 0, 127), 50); // Blue
+  //theaterChase(strip.Color(127, 127, 127), 50); // White
+  //theaterChase(strip.Color(127, 0, 0), 50); // Red
+  //theaterChase(strip.Color(0, 0, 127), 50); // Blue
 
-  rainbow(20);
-  rainbowCycle(20);
-  theaterChaseRainbow(50);
+  //rainbow(20);
+  //rainbowCycle(20);
+  //theaterChaseRainbow(50);
 }
 
 // Fill the dots one after the other with a color
